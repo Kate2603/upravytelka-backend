@@ -4,26 +4,32 @@ import cors from "cors";
 
 const app = express();
 
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT || 8080);
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-
-const ALLOWED_ORIGINS = (
+const ALLOWED_ORIGINS = String(
   process.env.ALLOWED_ORIGINS ||
-  process.env.ALLOWED_ORIGIN ||
-  "http://localhost:5173"
+    process.env.ALLOWED_ORIGIN ||
+    "http://localhost:5173",
 )
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
 
+const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || "");
+const TELEGRAM_CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || "");
+
 // --- middlewares ---
+app.use(express.json({ limit: "200kb" }));
+
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin) return cb(null, true); // curl/postman
+      // запити без origin (curl/postman, server-to-server)
+      if (!origin) return cb(null, true);
+
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+
+      // важливо: повертаємо помилку, і браузер покаже CORS blocked
       return cb(new Error(`CORS blocked: ${origin}`));
     },
     methods: ["GET", "POST", "OPTIONS"],
@@ -31,7 +37,8 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "200kb" }));
+// preflight для всіх шляхів (щоб OPTIONS не падав)
+app.options("*", cors());
 
 // --- helpers ---
 function requiredEnvOk() {
